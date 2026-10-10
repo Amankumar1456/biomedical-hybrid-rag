@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Biomedical Hybrid Search</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  .row { display: flex; gap: 8px; margin-bottom: 20px; }
+  input[type=text] { flex: 1; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; }
+  select, button { padding: 10px; font-size: 0.95rem; border-radius: 6px; border: 1px solid #ccc; }
+  button { background: #1a1a1a; color: white; border: none; cursor: pointer; }
+  .expansions { font-size: 0.85rem; color: #666; margin-bottom: 16px; }
+  .answer-box { padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+  .answer-box.ok { background: #f0f7f0; border: 1px solid #cde5cd; }
+  .answer-box.insufficient { background: #fff6f0; border: 1px solid #f0d5c0; }
+  .evidence { border-top: 1px solid #eee; padding-top: 12px; }
+  .passage { padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+  .passage .meta { color: #888; font-size: 0.8rem; margin-bottom: 4px; }
+  .loading { color: #888; font-style: italic; }
+</style>
+</head>
+<body>
+  <h1>Biomedical Hybrid Search</h1>
+  <div class="row">
+    <input type="text" id="query" placeholder="e.g. What is the role of BRCA1 in breast cancer?">
+    <select id="mode">
+      <option value="hybrid_expansion" selected>Hybrid + Expansion</option>
+      <option value="hybrid">Hybrid</option>
+      <option value="lexical">Lexical</option>
+      <option value="dense">Dense</option>
+    </select>
+    <button onclick="runSearch()">Search</button>
+  </div>
+
+  <div id="expansions" class="expansions"></div>
+  <div id="answer"></div>
+  <div id="evidence" class="evidence"></div>
+
+<script>
+async function runSearch() {
+  const query = document.getElementById('query').value.trim();
+  const mode = document.getElementById('mode').value;
+  if (!query) return;
+
+  document.getElementById('answer').innerHTML = '<p class="loading">Searching...</p>';
+  document.getElementById('expansions').innerHTML = '';
+  document.getElementById('evidence').innerHTML = '';
+
+  const res = await fetch('/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, mode })
+  });
+  const data = await res.json();
+
+  document.getElementById('expansions').innerHTML =
+    '<strong>Query:</strong> ' + data.query +
+    (data.expansions.length > 1
+      ? '<br><strong>Expansions:</strong> ' + data.expansions.slice(1).join(' &middot; ')
+      : '');
+
+  const answerClass = data.insufficient_evidence ? 'insufficient' : 'ok';
+  document.getElementById('answer').innerHTML =
+    `<div class="answer-box ${answerClass}"><strong>${data.insufficient_evidence ? 'Insufficient evidence' : 'Answer'}</strong><p>${data.answer}</p></div>`;
+
+  document.getElementById('evidence').innerHTML = data.evidence.map(e => `
+    <div class="passage">
+      <div class="meta">passage_id: ${e.passage_id} &middot; score: ${e.score.toFixed(4)}</div>
+      <div>${e.text}${e.text.length >= 400 ? '…' : ''}</div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('query').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+</script>
+</body>
+</html>

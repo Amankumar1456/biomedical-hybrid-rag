@@ -1,0 +1,9 @@
+﻿.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+.vscode/
+data/
+indexes/
+{data,indexes,src,eval,results}/
